@@ -1,7 +1,9 @@
 pub mod ast;
 mod parser_test;
+pub mod precedence;
 
-use ast::{Let, Program, Return, Statement};
+use ast::{Expression, Ident, Integer, Let, Literal, Program, Return, Statement};
+use precedence::Precedence;
 
 use crate::lexer::{
     Lexer,
@@ -88,14 +90,9 @@ impl<'s> Parser<'s> {
     /// Parses statements
     fn parse_statement(&mut self) -> Result<Statement, ParseError> {
         let st = match self.current_token.kind {
-            crate::lexer::token::TokenKind::Let => self.parse_let_statement()?,
-            crate::lexer::token::TokenKind::Return => self.parse_return_statement()?,
-            _ => {
-                return Err(format!(
-                    "Tried to parse a statement from a non statement token {}",
-                    self.current_token.kind
-                ));
-            }
+            TokenKind::Let => self.parse_let_statement()?,
+            TokenKind::Return => self.parse_return_statement()?,
+            _ => self.parse_expression_statement()?,
         };
 
         Ok(st)
@@ -161,5 +158,36 @@ impl<'s> Parser<'s> {
             exp: None,
             span: Span { start, end },
         }))
+    }
+
+    fn parse_expression_statement(&mut self) -> Result<Statement, ParseError> {
+        let exp = self.parse_expression(Precedence::Lowset)?;
+        if self.peek_token_is(&TokenKind::SemiColon) {
+            self.bump();
+        }
+        Ok(Statement::Expression(exp))
+    }
+
+    fn parse_expression(&mut self, precedence: Precedence) -> Result<Expression, ParseError> {
+        let left_exp = self.parse_prefix_expression()?;
+        Ok(left_exp)
+    }
+
+    fn parse_prefix_expression(&self) -> Result<Expression, ParseError> {
+        let span = self.current_token.clone().span;
+        match &self.current_token.kind {
+            TokenKind::Ident { name } => Ok(Expression::Identifier(Ident {
+                name: name.clone(),
+                span,
+            })),
+            TokenKind::Int(value) => Ok(Expression::Literal(Literal::Integer(Integer {
+                value: *value,
+                span,
+            }))),
+            _ => Err(format!(
+                "Prefix parse expression not implemented for {}",
+                self.current_token.kind
+            )),
+        }
     }
 }

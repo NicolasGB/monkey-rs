@@ -2,10 +2,10 @@
 mod test {
     use crate::{
         Lexer,
-        lexer::token::TokenKind,
+        lexer::token::{Span, Token, TokenKind},
         parser::{
-            self,
-            ast::{Program, Statement},
+            self, Parser,
+            ast::{Let, Program, Statement},
         },
     };
 
@@ -23,7 +23,7 @@ mod test {
                     ls.identifier.kind,
                 )
             }
-            Statement::Return(_) => panic!("Not a let statement"),
+            _ => panic!("Not a let statement"),
         }
     }
 
@@ -32,7 +32,7 @@ mod test {
             Statement::Return(_) => {
                 // TODO: Make indepth tests
             }
-            Statement::Let(_) => panic!("Not a return statement"),
+            _ => panic!("Not a return statement"),
         }
     }
 
@@ -41,6 +41,17 @@ mod test {
             eprintln!("Parsing error: {}", err)
         }
         panic!("Parsing exited with errors")
+    }
+
+    // Panics if the program cannot be parsed
+    fn parse_program(mut p: Parser) -> Program {
+        // Check no errors
+        let program = p.parse_program();
+
+        match program {
+            Ok(p) => p,
+            Err(errs) => parsing_errors(errs),
+        }
     }
 
     #[test]
@@ -52,15 +63,10 @@ mod test {
         ";
 
         let l = Lexer::new(input);
-        let mut p = parser::Parser::new(l);
+        let p = parser::Parser::new(l);
 
         // Check no errors
-        let program = p.parse_program();
-
-        let program = match program {
-            Ok(p) => p,
-            Err(errs) => parsing_errors(errs),
-        };
+        let program = parse_program(p);
 
         assert_eq!(
             3,
@@ -108,5 +114,60 @@ mod test {
         //     let stmt = program.statements.get(index).unwrap();
         //     test_let_statement(stmt, ident);
         // }
+    }
+
+    #[test]
+    fn test_string() {
+        let _p = Program {
+            statements: vec![Statement::Let(Let {
+                identifier: Token::new(
+                    TokenKind::Ident {
+                        name: "x".to_string(),
+                    },
+                    0,
+                    1,
+                ),
+                exp: None,
+                span: Span { start: 0, end: 1 },
+            })],
+        };
+    }
+
+    #[test]
+    fn test_identifier() {
+        let input = "foobar;";
+
+        let lexer = Lexer::new(input);
+        let parser = Parser::new(lexer);
+
+        let program = parse_program(parser);
+
+        assert_eq!(
+            1,
+            program.statements.len(),
+            "program does not contain 1 statement got: {}",
+            program.statements.len()
+        );
+
+        assert_eq!("foobar", program.to_string(), "Identifier doesn't match")
+    }
+
+    #[test]
+    fn test_integer_literal() {
+        let input = "5;";
+
+        let lexer = Lexer::new(input);
+        let parser = Parser::new(lexer);
+
+        let program = parse_program(parser);
+
+        assert_eq!(
+            1,
+            program.statements.len(),
+            "program does not contain 1 statement got: {}",
+            program.statements.len()
+        );
+
+        assert_eq!("5", program.to_string(), "Identifier doesn't match")
     }
 }
