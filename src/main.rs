@@ -1,8 +1,9 @@
+mod lexer;
+mod parser;
+
 use std::io::stdin;
 
 use lexer::{Lexer, token};
-
-mod lexer;
 
 fn main() {
     println!("Welcome to the Monkey REPL!");
