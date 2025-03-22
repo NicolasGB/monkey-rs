@@ -2,7 +2,7 @@ pub mod ast;
 mod parser_test;
 pub mod precedence;
 
-use ast::{Expression, Ident, Integer, Let, Literal, Program, Return, Statement};
+use ast::{Expression, Ident, Integer, Let, Literal, PrefixExp, Program, Return, Statement};
 use precedence::Precedence;
 
 use crate::lexer::{
@@ -173,7 +173,7 @@ impl<'s> Parser<'s> {
         Ok(left_exp)
     }
 
-    fn parse_prefix_expression(&self) -> Result<Expression, ParseError> {
+    fn parse_prefix_expression(&mut self) -> Result<Expression, ParseError> {
         let span = self.current_token.clone().span;
         match &self.current_token.kind {
             TokenKind::Ident { name } => Ok(Expression::Identifier(Ident {
@@ -184,6 +184,22 @@ impl<'s> Parser<'s> {
                 value: *value,
                 span,
             }))),
+            TokenKind::Bang | TokenKind::Minus => {
+                let start = self.current_token.span.start;
+
+                let operator = self.current_token.clone();
+
+                self.bump();
+
+                let right = self.parse_expression(Precedence::Prefix)?;
+
+                let end = self.current_token.span.end;
+                Ok(Expression::Prefix(PrefixExp {
+                    operator,
+                    right: Box::new(right),
+                    span: Span { start, end },
+                }))
+            }
             _ => Err(format!(
                 "Prefix parse expression not implemented for {}",
                 self.current_token.kind

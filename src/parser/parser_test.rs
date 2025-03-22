@@ -36,6 +36,21 @@ mod test {
         }
     }
 
+    fn test_parsing(cases: &[(&str, &str)]) {
+        for case in cases.iter() {
+            let lexer = Lexer::new(case.0);
+            let parser = Parser::new(lexer);
+
+            let program = parse_program(parser);
+
+            assert_eq!(
+                program.to_string(),
+                case.1,
+                "Program output does not match expected"
+            )
+        }
+    }
+
     fn parsing_errors(errs: Vec<String>) -> Program {
         for err in errs.iter() {
             eprintln!("Parsing error: {}", err)
@@ -169,5 +184,12 @@ mod test {
         );
 
         assert_eq!("5", program.to_string(), "Identifier doesn't match")
+    }
+
+    #[test]
+    fn test_prefix_expressions() {
+        let inputs = [("!5;", "(!5)"), ("-15", "(-15)")];
+
+        test_parsing(&inputs);
     }
 }

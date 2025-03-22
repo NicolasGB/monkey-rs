@@ -85,6 +85,7 @@ pub struct Return {
 pub enum Expression {
     Identifier(Ident),
     Literal(Literal),
+    Prefix(PrefixExp),
 }
 
 impl Display for Expression {
@@ -92,6 +93,9 @@ impl Display for Expression {
         match self {
             Expression::Identifier(ident) => write!(f, "{}", ident),
             Expression::Literal(lit) => write!(f, "{}", lit),
+            Expression::Prefix(PrefixExp {
+                operator, right, ..
+            }) => write!(f, "({}{})", operator.kind, right),
         }
     }
 }
@@ -124,5 +128,12 @@ impl Display for Literal {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Integer {
     pub value: i64,
+    pub span: Span,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct PrefixExp {
+    pub operator: Token,
+    pub right: Box<Expression>,
     pub span: Span,
 }
