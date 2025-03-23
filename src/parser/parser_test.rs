@@ -266,4 +266,13 @@ mod test {
 
         test_parsing(&inputs);
     }
+
+    #[test]
+    fn test_if_expression() {
+        let input = [
+            ("if (x < y) { x }", "if (x < y) { x }"),
+            ("if (x < y) { x } else { y }", "if (x < y) { x } else { y }"),
+        ];
+        test_parsing(&input);
+    }
 }

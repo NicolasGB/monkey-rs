@@ -87,6 +87,7 @@ pub enum Expression {
     Literal(Literal),
     Prefix(PrefixExp),
     Infix(InfixExp),
+    If(IfExp),
 }
 
 impl Display for Expression {
@@ -103,6 +104,15 @@ impl Display for Expression {
                 right,
                 ..
             }) => write!(f, "({} {} {})", left, operator.kind, right),
+            Expression::If(IfExp {
+                cond,
+                consequence,
+                alternative,
+                ..
+            }) => match alternative {
+                Some(block) => write!(f, "if {} {{ {} }} else {{ {} }}", cond, consequence, block),
+                None => write!(f, "if {} {{ {} }}", cond, consequence),
+            },
         }
     }
 }
@@ -159,4 +169,31 @@ pub struct InfixExp {
     pub operator: Token,
     pub right: Box<Expression>,
     pub span: Span,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct IfExp {
+    pub cond: Box<Expression>,
+    pub consequence: BlockStatement,
+    pub alternative: Option<BlockStatement>,
+    pub span: Span,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct BlockStatement {
+    pub statements: Vec<Statement>,
+    pub span: Span,
+}
+
+impl Display for BlockStatement {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = self
+            .statements
+            .iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<String>>()
+            .join("");
+
+        write!(f, "{s}")
+    }
 }

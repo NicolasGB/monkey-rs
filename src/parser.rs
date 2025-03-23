@@ -3,8 +3,8 @@ mod parser_test;
 pub mod precedence;
 
 use ast::{
-    Boolean, Expression, Ident, InfixExp, Integer, Let, Literal, PrefixExp, Program, Return,
-    Statement,
+    BlockStatement, Boolean, Expression, Ident, IfExp, InfixExp, Integer, Let, Literal, PrefixExp,
+    Program, Return, Statement,
 };
 use precedence::{Precedence, get_token_precedence};
 
@@ -54,7 +54,7 @@ impl<'s> Parser<'s> {
             // If it did no tmatch return false and no nothing
             Err(format!(
                 "Expected next token to be: {} got: {}",
-                kind, self.current_token.kind
+                kind, self.peek_token.kind
             ))
         }
     }
@@ -207,14 +207,14 @@ impl<'s> Parser<'s> {
                 span,
             }))),
             TokenKind::Bang | TokenKind::Minus => {
-                let start = self.current_token.span.start;
-
                 let operator = self.current_token.clone();
 
                 self.bump();
 
                 let right = self.parse_expression(Precedence::Prefix)?;
 
+                // Calculate the span
+                let start = span.start;
                 let end = self.current_token.span.end;
                 Ok(Expression::Prefix(PrefixExp {
                     operator,
@@ -241,6 +241,7 @@ impl<'s> Parser<'s> {
 
                 Ok(exp)
             }
+            TokenKind::If => self.parse_if_expression(),
             _ => Err(format!(
                 "Prefix parse expression not implemented for {}",
                 self.current_token.kind
@@ -297,5 +298,78 @@ impl<'s> Parser<'s> {
             }
             _ => None,
         }
+    }
+
+    /// Parses a if expression, the current index must be at an IF
+    fn parse_if_expression(&mut self) -> Result<Expression, ParseError> {
+        let start = self.current_token.span.start;
+
+        // Expect peek a left parenthesis
+        self.expect_peek(&TokenKind::LeftParen)?;
+        // Consume now the left parenthesis
+        self.bump();
+
+        // parse the condition
+        let cond = self.parse_expression(Precedence::Lowset)?;
+
+        // Expect peek a right parenthesis
+        self.expect_peek(&TokenKind::RightParen)?;
+
+        // Expect peek a left brace
+        self.expect_peek(&TokenKind::LeftBrace)?;
+
+        // Parse the block statement
+        let consequence = self.parse_block_statement()?;
+
+        // Check if there is an else condition to the if
+        let alternative = if self.peek_token_is(&TokenKind::Else) {
+            // Bump the else
+            self.bump();
+            // Expect peek {
+            self.expect_peek(&TokenKind::LeftBrace)?;
+            // Parse the inner else block statement
+            Some(self.parse_block_statement()?)
+        } else {
+            None
+        };
+
+        // Get the current token
+        let end = self.current_token.span.end;
+        println!("{}", self.current_token);
+
+        Ok(Expression::If(IfExp {
+            cond: Box::new(cond),
+            consequence,
+            alternative,
+            span: Span { start, end },
+        }))
+    }
+
+    /// Parses a block statement, the current index must be at a { token and it will end on the
+    /// matching }
+    fn parse_block_statement(&mut self) -> Result<BlockStatement, ParseError> {
+        let start = self.current_token.span.start;
+        // Bump the {
+        self.bump();
+
+        let mut statements = vec![];
+        // Loop through statements as long as we don't match a } or an EOF
+        while !self.current_token_is(&TokenKind::RightBrace)
+            && !self.current_token_is(&TokenKind::Eof)
+        {
+            if let Ok(s) = self.parse_statement() {
+                statements.push(s);
+            }
+
+            // Here we bump since the statement leaves the current pointer to the last token parsed
+            self.bump();
+        }
+
+        let end = self.current_token.span.end;
+
+        Ok(BlockStatement {
+            statements,
+            span: Span { start, end },
+        })
     }
 }
