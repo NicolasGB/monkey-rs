@@ -230,6 +230,17 @@ impl<'s> Parser<'s> {
                 value: false,
                 span,
             }))),
+            TokenKind::LeftParen => {
+                // Bump to the token after the (
+                self.bump();
+
+                let exp = self.parse_expression(Precedence::Lowset)?;
+
+                // Expect the Closing parenthesis, and bump if so, otherwise return an error
+                self.expect_peek(&TokenKind::RightParen)?;
+
+                Ok(exp)
+            }
             _ => Err(format!(
                 "Prefix parse expression not implemented for {}",
                 self.current_token.kind
