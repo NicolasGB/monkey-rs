@@ -2,8 +2,10 @@ pub mod ast;
 mod parser_test;
 pub mod precedence;
 
-use ast::{Expression, Ident, Integer, Let, Literal, PrefixExp, Program, Return, Statement};
-use precedence::Precedence;
+use ast::{
+    Expression, Ident, InfixExp, Integer, Let, Literal, PrefixExp, Program, Return, Statement,
+};
+use precedence::{Precedence, get_token_precedence};
 
 use crate::lexer::{
     Lexer,
@@ -169,10 +171,29 @@ impl<'s> Parser<'s> {
     }
 
     fn parse_expression(&mut self, precedence: Precedence) -> Result<Expression, ParseError> {
-        let left_exp = self.parse_prefix_expression()?;
+        let left_start = self.current_token.span.start;
+        let mut left_exp = self.parse_prefix_expression()?;
+
+        // While the next token is not a semicolon or the precedence is lower we iterate
+        while !self.peek_token_is(&TokenKind::SemiColon)
+            && precedence < get_token_precedence(&self.peek_token.kind)
+        {
+            let infix = self.parse_infix_expression(&left_exp, left_start);
+            match infix {
+                Some(infix) => {
+                    // Now the left part becomes the infix for the next iteration
+                    left_exp = infix?;
+                }
+                None => {
+                    return Ok(left_exp);
+                }
+            }
+        }
+
         Ok(left_exp)
     }
 
+    /// Parses prefix expressions and returns an Expression node
     fn parse_prefix_expression(&mut self) -> Result<Expression, ParseError> {
         let span = self.current_token.clone().span;
         match &self.current_token.kind {
@@ -204,6 +225,57 @@ impl<'s> Parser<'s> {
                 "Prefix parse expression not implemented for {}",
                 self.current_token.kind
             )),
+        }
+    }
+
+    /// Parses infix expressions and returns an Expression node
+    fn parse_infix_expression(
+        &mut self,
+        left: &Expression,
+        left_start: usize,
+    ) -> Option<Result<Expression, ParseError>> {
+        let kind = self.peek_token.kind.clone();
+        match kind {
+            TokenKind::Eq
+            | TokenKind::NotEq
+            | TokenKind::LT
+            | TokenKind::GT
+            | TokenKind::Plus
+            | TokenKind::Minus
+            | TokenKind::Star
+            | TokenKind::Slash => {
+                // Advance the cursors to be on top of the token
+                self.bump();
+
+                // Get the operator
+                let op = self.current_token.clone();
+
+                // Get the precedence of the infix token
+                let prec = get_token_precedence(&self.current_token.kind);
+
+                // Bump again to skip the operator since it's already part of the infix expression,
+                // if we don't do so we'll try to parse an infix as a prefix and won't work
+                self.bump();
+
+                // Advance again since now we know what precedence to call the next parsing with
+                let right = match self.parse_expression(prec) {
+                    Err(e) => return Some(Err(e)),
+                    Ok(exp) => exp,
+                };
+
+                let end = self.current_token.span.end;
+
+                Some(Ok(Expression::Infix(InfixExp {
+                    left: Box::new(left.clone()),
+                    operator: op,
+                    right: Box::new(right),
+                    span: Span {
+                        start: left_start,
+                        end,
+                    },
+                })))
+            }
+            _ => None,
         }
     }
 }

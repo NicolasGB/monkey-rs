@@ -38,7 +38,7 @@ impl Display for Program {
             .iter()
             .map(|s| s.to_string())
             .collect::<Vec<String>>()
-            .join("\n");
+            .join("");
 
         write!(f, "{statements}")
     }
@@ -86,6 +86,7 @@ pub enum Expression {
     Identifier(Ident),
     Literal(Literal),
     Prefix(PrefixExp),
+    Infix(InfixExp),
 }
 
 impl Display for Expression {
@@ -96,6 +97,12 @@ impl Display for Expression {
             Expression::Prefix(PrefixExp {
                 operator, right, ..
             }) => write!(f, "({}{})", operator.kind, right),
+            Expression::Infix(InfixExp {
+                left,
+                operator,
+                right,
+                ..
+            }) => write!(f, "({} {} {})", left, operator.kind, right),
         }
     }
 }
@@ -133,6 +140,14 @@ pub struct Integer {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct PrefixExp {
+    pub operator: Token,
+    pub right: Box<Expression>,
+    pub span: Span,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct InfixExp {
+    pub left: Box<Expression>,
     pub operator: Token,
     pub right: Box<Expression>,
     pub span: Span,
