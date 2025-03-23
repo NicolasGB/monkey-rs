@@ -122,12 +122,14 @@ impl Display for Ident {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Literal {
     Integer(Integer),
+    Boolean(Boolean),
 }
 
 impl Display for Literal {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Literal::Integer(integer) => write!(f, "{}", integer.value),
+            Literal::Boolean(boolean) => write!(f, "{}", boolean.value),
         }
     }
 }
@@ -135,6 +137,12 @@ impl Display for Literal {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Integer {
     pub value: i64,
+    pub span: Span,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Boolean {
+    pub value: bool,
     pub span: Span,
 }
 

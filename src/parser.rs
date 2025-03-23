@@ -3,7 +3,8 @@ mod parser_test;
 pub mod precedence;
 
 use ast::{
-    Expression, Ident, InfixExp, Integer, Let, Literal, PrefixExp, Program, Return, Statement,
+    Boolean, Expression, Ident, InfixExp, Integer, Let, Literal, PrefixExp, Program, Return,
+    Statement,
 };
 use precedence::{Precedence, get_token_precedence};
 
@@ -221,6 +222,14 @@ impl<'s> Parser<'s> {
                     span: Span { start, end },
                 }))
             }
+            TokenKind::True => Ok(Expression::Literal(Literal::Boolean(Boolean {
+                value: true,
+                span,
+            }))),
+            TokenKind::False => Ok(Expression::Literal(Literal::Boolean(Boolean {
+                value: false,
+                span,
+            }))),
             _ => Err(format!(
                 "Prefix parse expression not implemented for {}",
                 self.current_token.kind
